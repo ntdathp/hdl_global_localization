@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- ===== ARGS ===== -->
+  <arg name="bag_file"  default="/home/dat/data/megaparticle/indoor_easy_01/indoor_easy_01.bag" />
+  <arg name="play_rate" default="0.5" />
+  <arg name="cloud_topic" default="/points2/decompressed"/>
+  <arg name="delay_sec" default="3.0" />
+  <arg name="globalmap_pcd" default="/home/dat/data/megaparticle/map/map_indoor_easy.pcd" />
+
+  <param name="/use_sim_time" value="true" />
+
+  <!-- ===== LOAD YAML CONFIG  ===== -->
+  <rosparam command="load" file="$(find hdl_global_localization)/config/general_config.yaml" ns="/hdl_global_localization" />
+  <rosparam command="load" file="$(find hdl_global_localization)/config/bbs_config.yaml"     ns="/hdl_global_localization" />
+  <rosparam command="load" file="$(find hdl_global_localization)/config/fpfh_config.yaml"    ns="/hdl_global_localization" />
+  <rosparam command="load" file="$(find hdl_global_localization)/config/ransac_config.yaml"  ns="/hdl_global_localization" />
+  <rosparam command="load" file="$(find hdl_global_localization)/config/teaser_config.yaml"  ns="/hdl_global_localization" />
+
+  <!-- ===== NODE HGL  ===== -->
+  <node pkg="hdl_global_localization"
+        type="hdl_global_localization_node"
+        name="hdl_global_localization"
+        output="screen" />
+
+  <!-- ===== NODE SET GLOBAL MAP  ===== -->
+  <node pkg="hdl_global_localization"
+        type="set_global_map_from_pcd"
+        name="set_global_map_from_pcd">
+    <param name="pcd_path" value="$(arg globalmap_pcd)" />
+    <param name="frame_id" value="map" />
+  </node>
+
+  <!-- ===== NODE QUERY  ===== -->
+  <node pkg="hdl_global_localization"
+        type="query_once.py"
+        name="hgl_query_once"
+        output="screen">
+    <param name="cloud_topic" value="$(arg cloud_topic)" />
+    <param name="max_num_candidates" value="1" />
+  </node>
+
+  <!-- ===== ROSBAG PLAY  ===== -->
+  <node pkg="rosbag"
+        type="play"
+        name="play_bag"
+        args="--clock -r $(arg play_rate) --delay=$(arg delay_sec) $(arg bag_file)" />
+</launch>

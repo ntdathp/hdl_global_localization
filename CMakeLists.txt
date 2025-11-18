@@ -123,3 +123,10 @@ add_dependencies(hdl_global_localization_test ${PROJECT_NAME}_gencpp)
 target_link_libraries(hdl_global_localization_test
   ${catkin_LIBRARIES}
 )
+
+add_executable(set_global_map_from_pcd src/set_global_map_from_pcd.cpp)
+target_link_libraries(set_global_map_from_pcd
+  ${catkin_LIBRARIES}
+  pcl_common
+  pcl_io
+)

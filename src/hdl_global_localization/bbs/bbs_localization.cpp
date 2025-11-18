@@ -86,20 +86,71 @@ void BBSLocalization::set_map(const BBSLocalization::Points& map_points, double 
   }
 }
 
-boost::optional<Eigen::Isometry2f> BBSLocalization::localize(const BBSLocalization::Points& scan_points, double min_score, double* best_score) {
-  theta_resolution = std::acos(1 - std::pow(gridmap_pyramid[0]->grid_resolution(), 2) / (2 * std::pow(params.max_range, 2)));
+// boost::optional<Eigen::Isometry2f> BBSLocalization::localize(const BBSLocalization::Points& scan_points, double min_score, double* best_score) {
+//   theta_resolution = std::acos(1 - std::pow(gridmap_pyramid[0]->grid_resolution(), 2) / (2 * std::pow(params.max_range, 2)));
+
+//   double best_score_storage;
+//   best_score = best_score ? best_score : &best_score_storage;
+
+//   *best_score = min_score;
+//   boost::optional<DiscreteTransformation> best_trans;
+
+//   auto trans_queue = create_init_transset(scan_points);
+
+//   ROS_INFO_STREAM("Branch-and-Bound");
+//   while (!trans_queue.empty()) {
+//     // std::cout << trans_queue.size() << std::endl;
+
+//     auto trans = trans_queue.top();
+//     trans_queue.pop();
+
+//     if (trans.score < *best_score) {
+//       continue;
+//     }
+
+//     if (trans.is_leaf()) {
+//       best_trans = trans;
+//       *best_score = trans.score;
+//     } else {
+//       auto children = trans.branch();
+//       for (auto& child : children) {
+//         child.calc_score(scan_points, theta_resolution, gridmap_pyramid);
+//         trans_queue.push(child);
+//       }
+//     }
+//   }
+
+//   if (best_trans == boost::none) {
+//     return boost::none;
+//   }
+
+//   return best_trans->transformation(theta_resolution, gridmap_pyramid);
+// }
+
+boost::optional<Eigen::Isometry2f> BBSLocalization::localize(const Points& scan_points,
+                                                             double min_score,
+                                                             double* best_score) {
+  theta_resolution = std::acos(1 - std::pow(gridmap_pyramid[0]->grid_resolution(), 2) /
+                                     (2 * std::pow(params.max_range, 2)));
 
   double best_score_storage;
   best_score = best_score ? best_score : &best_score_storage;
 
-  *best_score = min_score;
+  // DEBUG: đừng dùng min_score làm ngưỡng, cho rất thấp để luôn chấp nhận cái tốt nhất
+  *best_score = -1e9;
   boost::optional<DiscreteTransformation> best_trans;
 
   auto trans_queue = create_init_transset(scan_points);
 
   ROS_INFO_STREAM("Branch-and-Bound");
+
+  // (bỏ std::cout cho đỡ chậm)
+  // int iter = 0;
+
   while (!trans_queue.empty()) {
-    // std::cout << trans_queue.size() << std::endl;
+    // if ((iter++ % 1000) == 0) {
+    //   ROS_INFO_STREAM("BBS queue size: " << trans_queue.size());
+    // }
 
     auto trans = trans_queue.top();
     trans_queue.pop();
@@ -121,11 +172,15 @@ boost::optional<Eigen::Isometry2f> BBSLocalization::localize(const BBSLocalizati
   }
 
   if (best_trans == boost::none) {
+    ROS_WARN_STREAM("BBS: no pose found, even with best_score initialized very low. "
+                    << "Last best_score=" << *best_score);
     return boost::none;
   }
 
+  ROS_INFO_STREAM("BBS: found pose, best_score=" << *best_score);
   return best_trans->transformation(theta_resolution, gridmap_pyramid);
 }
+
 
 std::shared_ptr<const OccupancyGridMap> BBSLocalization::gridmap() const {
   return gridmap_pyramid[0];
